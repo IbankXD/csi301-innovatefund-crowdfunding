@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InnovateFund - ระบบระดมทุนและบริหารเงินตามความสำเร็จ (โจทย์ที่ 5)</title>
+    <!-- Web3.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --card-bg: #131c2e;
+            --card-inner: #0b1120;
+            --border-color: #243248;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --accent: #8b5cf6;
+            --accent-hover: #7c3aed;
+            --success: #10b981;
+            --success-hover: #059669;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 24px 16px 48px;
+        }
+
+        .container {
+            max-width: 1140px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 22px 26px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+        }
+
+        .brand-title h1 {
+            font-size: 1.45rem;
+            color: #a78bfa;
+            margin-bottom: 6px;
+        }
+
+        .brand-title p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .student-badge {
+            background: rgba(139, 92, 246, 0.12);
+            border: 1px solid rgba(139, 92, 246, 0.4);
+            border-radius: 12px;
+            padding: 10px 16px;
+            font-size: 0.92rem;
+            line-height: 1.5;
+        }
+
+        /* Status Bar */
+        .status-box {
+            padding: 13px 16px;
+            border-radius: 12px;
+            font-size: 0.92rem;
+            background: var(--card-inner);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            word-break: break-all;
+            line-height: 1.5;
+        }
+
+        .status-box.pending {
+            border-color: var(--warning);
+            color: #fde68a;
+            background: rgba(245, 158, 11, 0.12);
+        }
+
+        .status-box.success {
+            border-color: var(--success);
+            color: #a7f3d0;
+            background: rgba(16, 185, 129, 0.12);
+        }
+
+        .status-box.error {
+            border-color: var(--danger);
+            color: #fecaca;
+            background: rgba(239, 68, 68, 0.12);
+        }
+
+        /* Layout Grid */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 22px;
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.35);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 4px 9px;
+            border-radius: 999px;
+            font-weight: 600;
+            background: rgba(139, 92, 246, 0.2);
+            color: #c4b5fd;
+        }
+
+        .badge.success {
+            background: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+        }
+
+        .badge.warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fde68a;
+        }
+
+        .badge.danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .field-label {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            background: var(--card-inner);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 0.92rem;
+            outline: none;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--accent);
+        }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 9px;
+            padding: 10px 16px;
+            font-size: 0.92rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .btn-primary { background-color: var(--primary); }
+        .btn-primary:hover:not(:disabled) { background-color: var(--primary-hover); }
+
+        .btn-accent { background-color: var(--accent); }
+        .btn-accent:hover:not(:disabled) { background-color: var(--accent-hover); }
+
+        .btn-success { background-color: var(--success); }
+        .btn-success:hover:not(:disabled) { background-color: var(--success-hover); }
+
+        .btn-danger { background-color: var(--danger); }
+        .btn-danger:hover:not(:disabled) { background-color: var(--danger-hover); }
+
+        .btn-sm {
+            padding: 5px 11px;
+            font-size: 0.8rem;
+            border-radius: 6px;
+            background: #243248;
+        }
+        .btn-sm:hover { background: #334155; }
+
+        .btn-block { width: 100%; margin-top: 8px; }
+
+        /* Progress Bar */
+        .progress-container {
+            background: #090d16;
+            border-radius: 999px;
+            height: 14px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            margin: 10px 0 14px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #10b981);
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* Milestone Card */
+        .milestone-item {
+            background: var(--card-inner);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 10px;
+        }
+
+        .milestone-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .meta-info {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            word-break: break-all;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            text-align: center;
+            margin-bottom: 14px;
+        }
+
+        .stat-box {
+            background: var(--card-inner);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 8px;
+        }
+
+        .stat-val {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #a78bfa;
+            word-break: break-all;
+        }
+
+        .stat-label {
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Table */
+        .ledger-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+            margin-top: 10px;
+        }
+
+        .ledger-table th, .ledger-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border-color);
+            text-align: left;
+        }
+
+        .ledger-table th {
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <div class="brand-title">
+            <h1>🚀 InnovateFund — Crowdfunding & Milestone Management</h1>
+            <p>โจทย์ที่ 5: ระบบบริหารโครงการระดมทุนและทยอยจ่ายเงินตามความสำเร็จของแต่ละระยะงาน (Infura)</p>
+        </div>
+        <div class="student-badge">
+            <div><strong>รหัสนักศึกษา:</strong> <span id="studentIdText">66026188</span></div>
+            <div><strong>ชื่อ-สกุล:</strong> <span id="studentNameText">ศิวัฒน์ แก้วหนองสังข์</span></div>
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div id="statusBox" class="status-box">
+        พร้อมใช้งาน: กรุณาระบุ Contract Address และ Private Key แล้วกด "เชื่อมต่อผ่าน Infura"
+    </div>
+
+    <!-- 0. Connection Section -->
+    <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header">
+            <div class="card-title">🛰️ 0. ตั้งค่าการเชื่อมต่อ Infura (HttpProvider) & Smart Contract</div>
+            <span class="badge">Web3.js + Infura</span>
+        </div>
+        <div class="grid-2" style="margin-bottom: 0; gap: 14px;">
+            <div class="form-group">
+                <label class="field-label">Infura Sepolia Endpoint (INFURA_URL)</label>
+                <input type="text" id="infuraUrlInput" value="https://sepolia.infura.io/v3/07a1ba8914704deca89e29fa729d34a5" />
+            </div>
+            <div class="form-group">
+                <label class="field-label">Contract Address (InnovateFund)</label>
+                <input type="text" id="contractAddressInput" placeholder="วาง Contract Address ที่ได้จาก Remix (0x...)" />
+            </div>
+        </div>
+        <div class="form-group" style="margin-top: 6px;">
+            <label class="field-label">
+                <span>Private Key ของกระเป๋า (สำหรับเจ้าของโครงการ / ผู้สนับสนุนเงินทุน)</span>
+                <span style="color: #a78bfa;">*เซ็นธุรกรรมในเบราว์เซอร์และส่งผ่าน Infura อัตโนมัติ</span>
+            </label>
+            <div class="input-row">
+                <input type="password" id="privateKeyInput" placeholder="0x... (Private Key จาก MetaMask)" />
+                <button id="connectBtn" class="btn btn-accent" onclick="connectInfura()" style="white-space: nowrap;">
+                    🔗 เชื่อมต่อผ่าน Infura
+                </button>
+            </div>
+        </div>
+        <div class="meta-info" id="status">สถานะบัญชี: ยังไม่ได้เชื่อมต่อ Private Key (โหมดอ่านข้อมูลสาธารณะผ่าน Infura)</div>
+        <div class="meta-info" id="contractStatus">สถานะสัญญา: กรุณาระบุ Contract Address</div>
+    </div>
+
+    <!-- 1. Create Campaign -->
+    <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header">
+            <div class="card-title">📝 1. สร้างโครงการระดมทุน (Create Campaign)</div>
+            <span class="badge">เจ้าของโครงการ (Creator)</span>
+        </div>
+        <div class="grid-2" style="margin-bottom: 0; gap: 14px;">
+            <div>
+                <div class="form-group">
+                    <label class="field-label">ชื่อโครงการ (Campaign Title)</label>
+                    <input type="text" id="campTitleInput" placeholder="เช่น AI Smart Drone for Agriculture" />
+                </div>
+                <div class="form-group">
+                    <label class="field-label">เป้าหมายเงินทุนรวม (Target Goal)</label>
+                    <div class="input-row">
+                        <input type="number" id="campGoalInput" placeholder="เช่น 0.05 หรือ 1000" step="any" min="0" oninput="validateMilestoneSum()" />
+                        <select id="campGoalUnit" style="width: 110px;" onchange="validateMilestoneSum()">
+                            <option value="ether">ETH</option>
+                            <option value="wei">Wei</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="field-label">ระยะเวลาระดมทุน (Funding Duration)</label>
+                    <div class="input-row">
+                        <input type="number" id="campDurationInput" value="10" min="1" />
+                        <select id="campDurationUnit" style="width: 110px;">
+                            <option value="minutes">นาที (เทสง่าย)</option>
+                            <option value="hours">ชั่วโมง</option>
+                            <option value="days">วัน</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Milestones Config -->
+            <div>
+                <div class="field-label">
+                    <span>การแบ่งงวดงาน (Milestones Allocation)</span>
+                    <span id="milestoneSumStatus" style="font-weight: 600; color: #f59e0b;">ยอดรวม: 0 ETH</span>
+                </div>
+                <div id="milestoneInputsContainer" style="max-height: 200px; overflow-y: auto; padding-right: 4px;">
+                    <!-- Milestone 1 -->
+                    <div class="milestone-item" style="padding: 10px; margin-bottom: 8px;">
+                        <div class="field-label"><strong>Milestone #1:</strong> วิจัยและออกแบบฮาร์ดแวร์ต้นแบบ</div>
+                        <div class="input-row">
+                            <input type="text" class="m-desc" value="Milestone 1: ออกแบบวงจรและจัดซื้ออุปกรณ์" placeholder="รายละเอียดงาน" />
+                            <input type="number" class="m-amount" placeholder="ยอดเงิน" step="any" style="width: 140px;" oninput="validateMilestoneSum()" />
+                        </div>
+                    </div>
+                    <!-- Milestone 2 -->
+                    <div class="milestone-item" style="padding: 10px; margin-bottom: 8px;">
+                        <div class="field-label"><strong>Milestone #2:</strong> พัฒนาระบบ AI และทดสอบการบิน</div>
+                        <div class="input-row">
+                            <input type="text" class="m-desc" value="Milestone 2: เทสการประมวลผลและการเชื่อมต่อ" placeholder="รายละเอียดงาน" />
+                            <input type="number" class="m-amount" placeholder="ยอดเงิน" step="any" style="width: 140px;" oninput="validateMilestoneSum()" />
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <button type="button" class="btn btn-sm" onclick="addMilestoneInput()">➕ เพิ่มงวดงาน (Milestone)</button>
+                    <button type="button" class="btn btn-sm" onclick="autoSplitMilestones()">⚖️ หารแบ่งงวดเท่ากัน</button>
+                </div>
+            </div>
+        </div>
+
+        <button id="createCampBtn" class="btn btn-accent btn-block" onclick="createCampaign()" disabled>
+            🚀 สร้างโครงการและจัดสรร Milestone ลง Blockchain
+        </button>
+    </div>
+
+    <!-- Active Campaign Dashboard: 2, 3, 4, 5, 6, 7 -->
+    <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header">
+            <div class="card-title">📊 โครงการที่กำลังตรวจสอบ (Active Campaign)</div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <select id="campaignSelect" style="width: 260px;" onchange="loadActiveCampaign()">
+                    <option value="">-- กรุณาเลือกโครงการ --</option>
+                </select>
+                <button class="btn btn-sm" onclick="refreshCampaignList()">🔄 รีเฟรช</button>
+            </div>
+        </div>
+
+        <!-- 3. Track Funding Progress -->
+        <div id="campaignDetailsArea" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+                <h2 id="viewCampTitle" style="font-size: 1.25rem; color: #a78bfa;">-</h2>
+                <div id="viewCampBadges" style="display: flex; gap: 6px;"></div>
+            </div>
+
+            <!-- Stats -->
+            <div class="stat-grid">
+                <div class="stat-box">
+                    <div class="stat-val" id="viewRaisedEth">0 ETH</div>
+                    <div class="stat-label">ยอดเงินสะสม (Raised) / เป้าหมาย <span id="viewTargetEth">0 ETH</span></div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val" id="viewContributors">0 คน</div>
+                    <div class="stat-label">ผู้สนับสนุนทั้งหมด (Contributors)</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val" id="viewTimeLeft">-</div>
+                    <div class="stat-label">เวลาที่เหลือ (Deadline Countdown)</div>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+
+            <!-- 2. Contribute Funds & 6. Refund Contribution -->
+            <div class="grid-2" style="margin-bottom: 20px; gap: 14px;">
+                <!-- 2. Contribute -->
+                <div class="card" style="background: var(--card-inner); padding: 16px;">
+                    <div class="card-title" style="font-size: 0.95rem; margin-bottom: 10px;">
+                        💰 2. สนับสนุนเงินทุน (Contribute Funds)
+                    </div>
+                    <div class="form-group">
+                        <label class="field-label">ระบุจำนวน ETH ที่ต้องการสนับสนุน</label>
+                        <div class="input-row">
+                            <input type="number" id="contributeAmountInput" placeholder="เช่น 0.01" step="any" min="0" />
+                            <select id="contributeUnit" style="width: 100px;">
+                                <option value="ether">ETH</option>
+                                <option value="wei">Wei</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button id="contributeBtn" class="btn btn-success btn-block" onclick="contributeFunds()" disabled>
+                        💸 โอน ETH ร่วมระดมทุน
+                    </button>
+                    <div class="meta-info" id="userContributedStat">ยอดเงินที่คุณร่วมสนับสนุนโครงการนี้: 0 ETH</div>
+                </div>
+
+                <!-- 6. Refund Contribution -->
+                <div class="card" style="background: var(--card-inner); padding: 16px;">
+                    <div class="card-title" style="font-size: 0.95rem; margin-bottom: 10px;">
+                        ↩️ 6. คืนเงินกรณีไม่สำเร็จ (Refund Contribution)
+                    </div>
+                    <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px;">
+                        เงื่อนไข: เมื่อหมดระยะเวลาระดมทุนแล้ว และยอดเงินสะสมไม่ถึงเป้าหมาย ผู้สนับสนุนสามารถกดขอรับเงินคืนเต็มจำนวน
+                    </p>
+                    <button id="refundBtn" class="btn btn-danger btn-block" onclick="claimRefund()" disabled>
+                        🛡️ ขอรับเงินสนับสนุนคืน (Claim Refund)
+                    </button>
+                    <div class="meta-info" id="refundStatusText">สถานะ: โครงการยังไม่สิ้นสุดระยะเวลาระดมทุน</div>
+                </div>
+            </div>
+
+            <!-- 4 & 5. Milestone Management & Approval Voting -->
+            <div class="card" style="background: var(--card-inner); padding: 18px; margin-bottom: 20px;">
+                <div class="card-header">
+                    <div class="card-title" style="font-size: 0.98rem;">
+                        📋 4 & 5. รายการระยะงาน (Milestones) & การอนุมัติเบิกเงิน
+                    </div>
+                    <span class="badge" id="currentMilestoneBadge">งวดปัจจุบัน: #1</span>
+                </div>
+                <div id="milestonesListContainer">
+                    <!-- Dynamic Milestones -->
+                </div>
+            </div>
+
+            <!-- 7. Funding Transparency Dashboard -->
+            <div class="card" style="background: var(--card-inner); padding: 18px;">
+                <div class="card-header">
+                    <div class="card-title" style="font-size: 0.98rem;">
+                        🔍 7. แสดงความโปร่งใสทางการเงิน (Funding Transparency Dashboard)
+                    </div>
+                    <span class="badge">Audit Trail</span>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="ledger-table">
+                        <thead>
+                            <tr>
+                                <th>ประเภท</th>
+                                <th>ผู้ทำรายการ</th>
+                                <th>จำนวนเงิน</th>
+                                <th>งวดงาน</th>
+                                <th>เวลาทำรายการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="financialLogsBody">
+                            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">ไม่มีรายการธุรกรรม</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="noCampaignPrompt" style="text-align: center; padding: 40px; color: var(--text-muted);">
+            กรุณาเชื่อมต่อสัญญาและเลือกโครงการที่ต้องการตรวจสอบด้านบน หรือสร้างโครงการใหม่ในข้อ 1
+        </div>
+    </div>
+</div>
+
+<script>
+    // =========================================================================
+    // ข้อมูลนักศึกษา และการตั้งค่าเริ่มต้นสำหรับ Infura
+    // =========================================================================
+    const STUDENT_ID = "66026188";
+    const STUDENT_NAME = "ศิวัฒน์ แก้วหนองสังข์";
+
+    const INFURA_URL = "https://sepolia.infura.io/v3/07a1ba8914704deca89e29fa729d34a5";
+    const PRIVATE_KEY = ""; // สามารถกรอกบนหน้าเว็บ หรือใส่ที่นี่
+    const DEFAULT_CONTRACT_ADDRESS = ""; // วาง Contract Address ที่ Deploy แล้วที่นี่
+
+    // ABI ของสัญญา InnovateFund
+    const CONTRACT_ABI = [
+        {
+            "anonymous": false,
+            "inputs": [
+                { "indexed": true, "internalType": "uint256", "name": "campaignId", "type": "uint256" },
+                { "indexed": false, "internalType": "string", "name": "title", "type": "string" },
+                { "indexed": true, "internalType": "address", "name": "creator", "type": "address" },
+                { "indexed": false, "internalType": "uint256", "name": "targetGoal", "type": "uint256" },
+                { "indexed": false, "internalType": "uint256", "name": "deadline", "type": "uint256" }
+            ],
+            "name": "CampaignCreated",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                { "indexed": true, "internalType": "uint256", "name": "campaignId", "type": "uint256" },
+                { "indexed": true, "internalType": "address", "name": "contributor", "type": "address" },
+                { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" },
+                { "indexed": false, "internalType": "uint256", "name": "totalRaised", "type": "uint256" }
+            ],
+            "name": "ContributionReceived",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                { "indexed": true, "internalType": "uint256", "name": "campaignId", "type": "uint256" },
+                { "indexed": true, "internalType": "uint256", "name": "milestoneIndex", "type": "uint256" },
+                { "indexed": true, "internalType": "address", "name": "voter", "type": "address" },
+                { "indexed": false, "internalType": "uint256", "name": "currentVotes", "type": "uint256" }
+            ],
+            "name": "MilestoneApproved",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                { "indexed": true, "internalType": "uint256", "name": "campaignId", "type": "uint256" },
+                { "indexed": true, "internalType": "uint256", "name": "milestoneIndex", "type": "uint256" },
+                { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" },
+                { "indexed": true, "internalType": "address", "name": "creator", "type": "address" }
+            ],
+            "name": "MilestoneFundsReleased",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                { "indexed": true, "internalType": "uint256", "name": "campaignId", "type": "uint256" },
+                { "indexed": true, "internalType": "uint256", "name": "milestoneIndex", "type": "uint256" },
+                { "indexed": false, "internalType": "string", "name": "evidence", "type": "string" }
+            ],
+            "name": "MilestoneReleaseRequested",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                { "indexed": true, "internalType": "uint256", "name": "campaignId", "type": "uint256" },
+                { "indexed": true, "internalType": "address", "name": "contributor", "type": "address" },
+                { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
+            ],
+            "name": "RefundClaimed",
+            "type": "event"
+        },
+        {
+            "inputs": [
+                { "internalType": "uint256", "name": "_campaignId", "type": "uint256" },
+                { "internalType": "uint256", "name": "_milestoneIndex", "type": "uint256" }
+            ],
+            "name": "approveMilestone",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+            "name": "campaigns",
+            "outputs": [
+                { "internalType": "uint256", "name": "id", "type": "uint256" },
+                { "internalType": "string", "name": "title", "type": "string" },
+                { "internalType": "address payable", "name": "creator", "type": "address" },
+                { "internalType": "uint256", "name": "targetGoal", "type": "uint256" },
+                { "internalType": "uint256", "name": "deadline", "type": "uint256" },
+                { "internalType": "uint256", "name": "raisedAmount", "type": "uint256" },
+                { "internalType": "uint256", "name": "totalContributors", "type": "uint256" },
+                { "internalType": "uint256", "name": "currentMilestone", "type": "uint256" },
+                { "internalType": "uint256", "name": "milestoneCount", "type": "uint256" },
+                { "internalType": "bool", "name": "exists", "type": "bool" }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [{ "internalType": "uint256", "name": "_campaignId", "type": "uint256" }],
+            "name": "claimRefund",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [{ "internalType": "uint256", "name": "_campaignId", "type": "uint256" }],
+            "name": "contribute",
+            "outputs": [],
+            "stateMutability": "payable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                { "internalType": "uint256", "name": "", "type": "uint256" },
+                { "internalType": "address", "name": "", "type": "address" }
+            ],
+            "name": "contributions",
+            "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                { "internalType": "string", "name": "_title", "type": "string" },
+                { "internalType": "uint256", "name": "_targetGoal", "type": "uint256" },
+                { "internalType": "uint256", "name": "_durationInSeconds", "type": "uint256" },
+                { "internalType": "string[]", "name": "_milestoneDescs", "type": "string[]" },
+                { "internalType": "uint256[]", "name": "_milestoneAmounts", "type": "uint256[]" }
+            ],
+            "name": "createCampaign",
+            "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [{ "internalType": "uint256", "name": "_campaignId", "type": "uint256" }],
+            "name": "getCampaignProgress",
+            "outputs": [
+                { "internalType": "string", "name": "title", "type": "string" },
+                { "internalType": "address", "name": "creator", "type": "address" },
+                { "internalType": "uint256", "name": "targetGoal", "type": "uint256" },
+                { "internalType": "uint256", "name": "deadline", "type": "uint256" },
+                { "internalType": "uint256", "name": "raisedAmount", "type": "uint256" },
+                { "internalType": "uint256", "name": "totalContributors", "type": "uint256" },
+                { "internalType": "uint256", "name": "currentMilestone", "type": "uint256" },
+                { "internalType": "uint256", "name": "milestoneCount", "type": "uint256" },
+                { "internalType": "bool", "name": "isGoalReached", "type": "bool" },
+                { "internalType": "bool", "name": "isExpired", "type": "bool" }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [{ "internalType": "uint256", "name": "_campaignId", "type": "uint256" }],
+            "name": "getFinancialLogs",
+            "outputs": [
+                { "internalType": "string[]", "name": "types", "type": "string[]" },
+                { "internalType": "address[]", "name": "actors", "type": "address[]" },
+                { "internalType": "uint256[]", "name": "amounts", "type": "uint256[]" },
+                { "internalType": "uint256[]", "name": "milestoneIndexes", "type": "uint256[]" },
+                { "internalType": "uint256[]", "name": "timestamps", "type": "uint256[]" }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [{ "internalType": "uint256", "name": "_campaignId", "type": "uint256" }],
+            "name": "getMilestones",
+            "outputs": [
+                { "internalType": "string[]", "name": "descriptions", "type": "string[]" },
+                { "internalType": "uint256[]", "name": "targetAmounts", "type": "uint256[]" },
+                { "internalType": "string[]", "name": "evidences", "type": "string[]" },
+                { "internalType": "uint256[]", "name": "approvalCounts", "type": "uint256[]" },
+                { "internalType": "bool[]", "name": "isRequesteds", "type": "bool[]" },
+                { "internalType": "bool[]", "name": "isPaids", "type": "bool[]" }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                { "internalType": "uint256", "name": "_campaignId", "type": "uint256" },
+                { "internalType": "uint256", "name": "_milestoneIndex", "type": "uint256" },
+                { "internalType": "address", "name": "_voter", "type": "address" }
+            ],
+            "name": "hasVotedOnMilestone",
+            "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [],
+            "name": "nextCampaignId",
+            "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                { "internalType": "uint256", "name": "_campaignId", "type": "uint256" },
+                { "internalType": "uint256", "name": "_milestoneIndex", "type": "uint256" },
+                { "internalType": "string", "name": "_evidence", "type": "string" }
+            ],
+            "name": "requestMilestoneRelease",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        }
+    ];
+
+    let web3 = null;
+    let contract = null;
+    let account = null;
+    let countdownTimer = null;
+
+    window.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("studentIdText").textContent = STUDENT_ID;
+        document.getElementById("studentNameText").textContent = STUDENT_NAME;
+
+        if (INFURA_URL) document.getElementById("infuraUrlInput").value = INFURA_URL;
+        if (DEFAULT_CONTRACT_ADDRESS) document.getElementById("contractAddressInput").value = DEFAULT_CONTRACT_ADDRESS;
+        if (PRIVATE_KEY) document.getElementById("privateKeyInput").value = PRIVATE_KEY;
+
+        initReadOnlyProvider();
+    });
+
+    function setStatus(message, type = "") {
+        const box = document.getElementById("statusBox");
+        box.textContent = message;
+        box.className = "status-box " + type;
+    }
+
+    function initReadOnlyProvider() {
+        const url = document.getElementById("infuraUrlInput").value.trim() || INFURA_URL;
+        const addr = document.getElementById("contractAddressInput").value.trim() || DEFAULT_CONTRACT_ADDRESS;
+        if (!url) return;
+
+        web3 = new Web3(new Web3.providers.HttpProvider(url));
+        if (addr && web3.utils.isAddress(addr)) {
+            contract = new web3.eth.Contract(CONTRACT_ABI, addr);
+            document.getElementById("contractStatus").textContent = `สถานะสัญญา: เชื่อมต่อที่ ${addr}`;
+            refreshCampaignList();
+        }
+    }
+
+    // เชื่อมต่อด้วย Infura + Private Key
+    async function connectInfura() {
+        const url = document.getElementById("infuraUrlInput").value.trim() || INFURA_URL;
+        const addr = document.getElementById("contractAddressInput").value.trim() || DEFAULT_CONTRACT_ADDRESS;
+        let pk = document.getElementById("privateKeyInput").value.trim() || PRIVATE_KEY;
+
+        if (!url) return setStatus("❌ กรุณาระบุ INFURA_URL", "error");
+        if (!addr || !Web3.utils.isAddress(addr)) return setStatus("❌ กรุณาระบุ Contract Address ให้ถูกต้อง (0x...)", "error");
+        if (!pk) return setStatus("❌ กรุณาระบุ Private Key เพื่อใช้ทำธุรกรรม", "error");
+
+        if (!pk.startsWith("0x")) pk = "0x" + pk;
+
+        try {
+            setStatus("⏳ กำลังเชื่อมต่อเข้าสู่เครือข่ายผ่าน Infura...", "pending");
+            web3 = new Web3(new Web3.providers.HttpProvider(url));
+            contract = new web3.eth.Contract(CONTRACT_ABI, addr);
+            account = web3.eth.accounts.privateKeyToAccount(pk);
+            web3.eth.accounts.wallet.add(account);
+            web3.eth.defaultAccount = account.address;
+
+            document.getElementById("status").textContent = `Connected via Infura with account: ${account.address}`;
+            document.getElementById("contractStatus").textContent = `สถานะสัญญา: เชื่อมต่อที่ ${addr}`;
+            document.getElementById("connectBtn").textContent = "✅ เชื่อมต่อ Infura แล้ว";
+
+            document.getElementById("createCampBtn").disabled = false;
+            document.getElementById("contributeBtn").disabled = false;
+
+            setStatus(`✅ Connected via Infura with account: ${account.address}`, "success");
+            await refreshCampaignList();
+            if (document.getElementById("campaignSelect").value !== "") {
+                await loadActiveCampaign();
+            }
+        } catch (err) {
+            setStatus(`❌ การเชื่อมต่อล้มเหลว: ${err.message}`, "error");
+        }
+    }
+
+    // ส่งธุรกรรมผ่าน Infura (เซ็นด้วย Private Key ภายในเบราว์เซอร์ แล้วส่ง raw transaction)
+    async function executeContractTx(methodCall, valueInWei = "0") {
+        if (!web3 || !contract || !account) {
+            throw new Error("กรุณาเชื่อมต่อผ่าน Infura ด้วย Private Key ก่อนทำรายการ");
+        }
+
+        const encodedData = methodCall.encodeABI();
+        const nonce = await web3.eth.getTransactionCount(account.address, "pending");
+        const rawGasPrice = await web3.eth.getGasPrice();
+        const gasPrice = Math.floor(Number(rawGasPrice) * 1.25).toString();
+
+        let gasLimit;
+        try {
+            const est = await methodCall.estimateGas({ from: account.address, value: valueInWei });
+            gasLimit = Math.floor(Number(est) * 1.3);
+        } catch (e) {
+            gasLimit = 400000;
+        }
+
+        const txData = {
+            from: account.address,
+            to: contract.options.address,
+            data: encodedData,
+            value: valueInWei,
+            gas: gasLimit,
+            gasPrice: gasPrice,
+            nonce: nonce
+        };
+
+        const signedTx = await web3.eth.accounts.signTransaction(txData, account.privateKey);
+        const receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+        return receipt;
+    }
+
+    // =========================================================================
+    // Dynamic Milestones Input Helpers
+    // =========================================================================
+    function addMilestoneInput() {
+        const container = document.getElementById("milestoneInputsContainer");
+        const count = container.querySelectorAll(".milestone-item").length + 1;
+
+        const div = document.createElement("div");
+        div.className = "milestone-item";
+        div.style.padding = "10px";
+        div.style.marginBottom = "8px";
+        div.innerHTML = `
+            <div class="field-label">
+                <strong>Milestone #${count}:</strong>
+                <button type="button" class="btn btn-sm" onclick="this.parentElement.parentElement.remove(); validateMilestoneSum();" style="padding:2px 8px; color:#fca5a5;">ลบ</button>
+            </div>
+            <div class="input-row">
+                <input type="text" class="m-desc" placeholder="รายละเอียดงวดงาน #${count}" />
+                <input type="number" class="m-amount" placeholder="ยอดเงิน" step="any" style="width: 140px;" oninput="validateMilestoneSum()" />
+            </div>
+        `;
+        container.appendChild(div);
+        validateMilestoneSum();
+    }
+
+    function autoSplitMilestones() {
+        const goal = parseFloat(document.getElementById("campGoalInput").value) || 0;
+        const items = document.querySelectorAll(".milestone-item");
+        if (goal <= 0 || items.length === 0) return;
+
+        const each = (goal / items.length).toFixed(4);
+        items.forEach((item, index) => {
+            const amtInput = item.querySelector(".m-amount");
+            if (index === items.length - 1) {
+                const diff = (goal - (parseFloat(each) * (items.length - 1))).toFixed(4);
+                amtInput.value = diff;
+            } else {
+                amtInput.value = each;
+            }
+        });
+        validateMilestoneSum();
+    }
+
+    function validateMilestoneSum() {
+        const goal = parseFloat(document.getElementById("campGoalInput").value) || 0;
+        const unit = document.getElementById("campGoalUnit").value;
+        const amounts = document.querySelectorAll(".m-amount");
+
+        let sum = 0;
+        amounts.forEach(a => sum += (parseFloat(a.value) || 0));
+
+        const statusEl = document.getElementById("milestoneSumStatus");
+        const diff = Math.abs(goal - sum);
+
+        if (goal > 0 && diff < 0.000001) {
+            statusEl.textContent = `✅ ยอดรวมตรงกัน: ${sum} ${unit.toUpperCase()}`;
+            statusEl.style.color = "#10b981";
+        } else {
+            statusEl.textContent = `⚠️ ยอดรวมงวดงาน (${sum.toFixed(4)}) ≠ เป้าหมาย (${goal} ${unit.toUpperCase()})`;
+            statusEl.style.color = "#f59e0b";
+        }
+    }
+
+    // =========================================================================
+    // 1. สร้างโครงการระดมทุน (Create Campaign)
+    // =========================================================================
+    async function createCampaign() {
+        if (!contract || !account) return;
+
+        const title = document.getElementById("campTitleInput").value.trim();
+        const goalVal = document.getElementById("campGoalInput").value.trim();
+        const goalUnit = document.getElementById("campGoalUnit").value;
+        const durationVal = parseInt(document.getElementById("campDurationInput").value) || 0;
+        const durationUnit = document.getElementById("campDurationUnit").value;
+
+        if (!title || !goalVal || durationVal <= 0) {
+            return setStatus("❌ กรุณากรอกชื่อโครงการ, เป้าหมายเงินทุน, และระยะเวลาให้ครบถ้วน", "error");
+        }
+
+        let durationSeconds = durationVal;
+        if (durationUnit === "minutes") durationSeconds = durationVal * 60;
+        else if (durationUnit === "hours") durationSeconds = durationVal * 3600;
+        else if (durationUnit === "days") durationSeconds = durationVal * 86400;
+
+        const targetWei = goalUnit === "ether" ? web3.utils.toWei(goalVal, "ether") : goalVal;
+
+        const descInputs = document.querySelectorAll(".m-desc");
+        const amountInputs = document.querySelectorAll(".m-amount");
+        const descs = [];
+        const amountsWei = [];
+        let totalMilestonesWei = web3.utils.toBN(0);
+
+        for (let i = 0; i < descInputs.length; i++) {
+            const d = descInputs[i].value.trim() || `Milestone ${i+1}`;
+            const a = amountInputs[i].value.trim();
+            if (!a || parseFloat(a) <= 0) {
+                return setStatus(`❌ กรุณากรอกยอดเงินของ Milestone #${i+1} ให้มากกว่า 0`, "error");
+            }
+            const aWei = goalUnit === "ether" ? web3.utils.toWei(a, "ether") : a;
+            descs.push(d);
+            amountsWei.push(aWei);
+            totalMilestonesWei = totalMilestonesWei.add(web3.utils.toBN(aWei));
+        }
+
+        if (totalMilestonesWei.toString() !== targetWei.toString()) {
+            return setStatus("❌ ยอดเงินรวมของทุก Milestone ต้องเท่ากับเป้าหมายเงินทุนรวมพอดี", "error");
+        }
+
+        try {
+            setStatus(`⏳ กำลังสร้างโครงการ "${title}" และจัดสรร Milestone ลง Blockchain...`, "pending");
+
+            const tx = await executeContractTx(
+                contract.methods.createCampaign(title, targetWei, durationSeconds, descs, amountsWei)
+            );
+
+            setStatus(`✅ สร้างโครงการสำเร็จ! Tx Hash: ${tx.transactionHash}`, "success");
+            await refreshCampaignList();
+            document.getElementById("campTitleInput").value = "";
+        } catch (err) {
+            setStatus(`❌ สร้างโครงการไม่สำเร็จ: ${err.message}`, "error");
+        }
+    }
+
+    // =========================================================================
+    // Refresh & Load Campaigns
+    // =========================================================================
+    async function refreshCampaignList() {
+        if (!contract) return;
+        try {
+            const nextId = await contract.methods.nextCampaignId().call();
+            const select = document.getElementById("campaignSelect");
+            const currentSelected = select.value;
+            select.innerHTML = `<option value="">-- กรุณาเลือกโครงการ (${nextId} โครงการ) --</option>`;
+
+            for (let i = 0; i < Number(nextId); i++) {
+                const c = await contract.methods.getCampaignProgress(i).call();
+                const raisedEth = web3.utils.fromWei(c.raisedAmount, "ether");
+                const targetEth = web3.utils.fromWei(c.targetGoal, "ether");
+                select.innerHTML += `<option value="${i}">#${i}: ${c.title} (${raisedEth}/${targetEth} ETH)</option>`;
+            }
+
+            if (currentSelected && currentSelected < nextId) {
+                select.value = currentSelected;
+            } else if (Number(nextId) > 0) {
+                select.value = Number(nextId) - 1;
+            }
+            loadActiveCampaign();
+        } catch (e) {}
+    }
+
+    async function loadActiveCampaign() {
+        initReadOnlyProvider();
+        const select = document.getElementById("campaignSelect");
+        const campId = select.value;
+
+        const area = document.getElementById("campaignDetailsArea");
+        const prompt = document.getElementById("noCampaignPrompt");
+
+        if (campId === "" || !contract) {
+            area.style.display = "none";
+            prompt.style.display = "block";
+            return;
+        }
+
+        area.style.display = "block";
+        prompt.style.display = "none";
+
+        try {
+            const c = await contract.methods.getCampaignProgress(campId).call();
+            const targetEth = web3.utils.fromWei(c.targetGoal, "ether");
+            const raisedEth = web3.utils.fromWei(c.raisedAmount, "ether");
+
+            document.getElementById("viewCampTitle").textContent = `#${campId}: ${c.title}`;
+            document.getElementById("viewTargetEth").textContent = `${targetEth} ETH`;
+            document.getElementById("viewRaisedEth").textContent = `${raisedEth} ETH`;
+            document.getElementById("viewContributors").textContent = `${c.totalContributors} คน`;
+
+            // Percentage
+            const pct = Math.min(100, Math.floor((Number(c.raisedAmount) / Number(c.targetGoal)) * 100));
+            document.getElementById("progressBar").style.width = `${pct}%`;
+
+            // Badges
+            const badgesEl = document.getElementById("viewCampBadges");
+            badgesEl.innerHTML = "";
+            if (c.isGoalReached) {
+                badgesEl.innerHTML += `<span class="badge success">🎉 ระดมทุนถึงเป้าแล้ว</span>`;
+            } else if (c.isExpired) {
+                badgesEl.innerHTML += `<span class="badge danger">⌛ หมดเวลาระดมทุน</span>`;
+            } else {
+                badgesEl.innerHTML += `<span class="badge warning">⏳ กำลังระดมทุน</span>`;
+            }
+
+            // Countdown
+            updateCountdown(Number(c.deadline));
+
+            // User Contribution
+            if (account && account.address) {
+                const userCont = await contract.methods.contributions(campId, account.address).call();
+                const userEth = web3.utils.fromWei(userCont, "ether");
+                document.getElementById("userContributedStat").textContent =
+                    `ยอดเงินที่คุณร่วมสนับสนุนโครงการนี้: ${userEth} ETH (${userCont} Wei)`;
+
+                // Refund button logic
+                const refundBtn = document.getElementById("refundBtn");
+                const refundText = document.getElementById("refundStatusText");
+                if (c.isExpired && !c.isGoalReached && Number(userCont) > 0) {
+                    refundBtn.disabled = false;
+                    refundText.textContent = `✅ คุณมียอดสนับสนุน ${userEth} ETH พร้อมขอรับเงินคืนได้ทันที!`;
+                    refundText.style.color = "#10b981";
+                } else if (c.isGoalReached) {
+                    refundBtn.disabled = true;
+                    refundText.textContent = "สถานะ: โครงการระดมทุนสำเร็จตามเป้าหมาย (ไม่อยู่ในเงื่อนไขคืนเงิน)";
+                    refundText.style.color = "#94a3b8";
+                } else {
+                    refundBtn.disabled = true;
+                    refundText.textContent = c.isExpired ? "คุณไม่มียอดเงินสนับสนุนในโครงการนี้" : "สถานะ: โครงการยังไม่สิ้นสุดระยะเวลาระดมทุน";
+                    refundText.style.color = "#94a3b8";
+                }
+            }
+
+            // Milestones list
+            await loadMilestones(campId, c);
+
+            // Financial Ledger
+            await loadFinancialLogs(campId);
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    function updateCountdown(deadlineSec) {
+        if (countdownTimer) clearInterval(countdownTimer);
+
+        function tick() {
+            const now = Math.floor(Date.now() / 1000);
+            const remaining = deadlineSec - now;
+            const el = document.getElementById("viewTimeLeft");
+
+            if (remaining <= 0) {
+                el.textContent = "หมดเวลาแล้ว";
+                el.style.color = "#ef4444";
+                return;
+            }
+
+            const d = Math.floor(remaining / 86400);
+            const h = Math.floor((remaining % 86400) / 3600);
+            const m = Math.floor((remaining % 3600) / 60);
+            const s = remaining % 60;
+
+            if (d > 0) el.textContent = `${d} วัน ${h} ชม.`;
+            else if (h > 0) el.textContent = `${h} ชม. ${m} นาที`;
+            else el.textContent = `${m} นาที ${s} วินาที`;
+            el.style.color = "#a78bfa";
+        }
+
+        tick();
+        countdownTimer = setInterval(tick, 1000);
+    }
+
+    // =========================================================================
+    // 2. สนับสนุนเงินทุน (Contribute Funds)
+    // =========================================================================
+    async function contributeFunds() {
+        if (!contract || !account) return;
+        const campId = document.getElementById("campaignSelect").value;
+        const amtVal = document.getElementById("contributeAmountInput").value.trim();
+        const unit = document.getElementById("contributeUnit").value;
+
+        if (!amtVal || parseFloat(amtVal) <= 0) {
+            return setStatus("❌ กรุณาระบุจำนวนเงินที่ต้องการสนับสนุนให้มากกว่า 0", "error");
+        }
+
+        const amtWei = unit === "ether" ? web3.utils.toWei(amtVal, "ether") : amtVal;
+
+        try {
+            setStatus(`⏳ กำลังส่งธุรกรรมโอน ${amtVal} ${unit.toUpperCase()} สนับสนุนโครงการ #${campId}...`, "pending");
+
+            const tx = await executeContractTx(
+                contract.methods.contribute(campId),
+                amtWei
+            );
+
+            setStatus(`✅ โอนเงินสนับสนุนโครงการ #${campId} สำเร็จ! Tx Hash: ${tx.transactionHash}`, "success");
+            document.getElementById("contributeAmountInput").value = "";
+            await loadActiveCampaign();
+        } catch (err) {
+            setStatus(`❌ ร่วมระดมทุนไม่สำเร็จ: ${err.message}`, "error");
+        }
+    }
+
+    // =========================================================================
+    // 6. ขอรับเงินคืน (Refund Contribution)
+    // =========================================================================
+    async function claimRefund() {
+        if (!contract || !account) return;
+        const campId = document.getElementById("campaignSelect").value;
+
+        try {
+            setStatus(`⏳ กำลังส่งธุรกรรมขอรับเงินสนับสนุนคืนจากโครงการ #${campId}...`, "pending");
+
+            const tx = await executeContractTx(
+                contract.methods.claimRefund(campId)
+            );
+
+            setStatus(`✅ ขอรับเงินคืนสำเร็จ! เงินถูกโอนกลับเข้ากระเป๋าคุณแล้ว (Tx Hash: ${tx.transactionHash})`, "success");
+            await loadActiveCampaign();
+        } catch (err) {
+            setStatus(`❌ ขอรับเงินคืนไม่สำเร็จ: ${err.message}`, "error");
+        }
+    }
+
+    // =========================================================================
+    // 4 & 5. โหลดและจัดการ Milestones
+    // =========================================================================
+    async function loadMilestones(campId, campInfo) {
+        const container = document.getElementById("milestonesListContainer");
+        const res = await contract.methods.getMilestones(campId).call();
+
+        const isCreator = account && (account.address.toLowerCase() === campInfo.creator.toLowerCase());
+        const isContributor = account ? (await contract.methods.contributions(campId, account.address).call() > 0) : false;
+        const totalContributors = Number(campInfo.totalContributors);
+        const requiredVotes = Math.floor(totalContributors / 2) + 1;
+
+        let html = "";
+        for (let i = 0; i < res.descriptions.length; i++) {
+            const desc = res.descriptions[i];
+            const amountEth = web3.utils.fromWei(res.targetAmounts[i], "ether");
+            const evidence = res.evidences[i];
+            const approvalCount = Number(res.approvalCounts[i]);
+            const isRequested = res.isRequesteds[i];
+            const isPaid = res.isPaids[i];
+
+            let statusBadge = "";
+            let actionHtml = "";
+
+            if (isPaid) {
+                statusBadge = `<span class="badge success">✅ จ่ายเงินแล้ว (${amountEth} ETH)</span>`;
+                actionHtml = `<div class="meta-info" style="color:#6ee7b7;">โอนเงินให้เจ้าของโครงการเรียบร้อยแล้ว</div>`;
+            } else if (isRequested) {
+                statusBadge = `<span class="badge warning">🗳️ กำลังเปิดโหวต (${approvalCount}/${totalContributors} เสียง - ต้องการ ${requiredVotes})</span>`;
+
+                let alreadyVoted = false;
+                if (account) {
+                    alreadyVoted = await contract.methods.hasVotedOnMilestone(campId, i, account.address).call();
+                }
+
+                if (alreadyVoted) {
+                    actionHtml = `<button class="btn btn-sm" disabled>✅ คุณลงคะแนนแล้ว</button>`;
+                } else if (isContributor) {
+                    actionHtml = `
+                        <button class="btn btn-accent btn-sm" onclick="approveMilestone(${campId}, ${i})">
+                            🗳️ โหวตเห็นชอบให้เบิกเงิน (${amountEth} ETH)
+                        </button>
+                    `;
+                } else {
+                    actionHtml = `<span class="meta-info">เฉพาะผู้สนับสนุนเงินทุนที่มีสิทธิ์โหวต</span>`;
+                }
+            } else {
+                statusBadge = `<span class="badge">⏳ รอดำเนินการ</span>`;
+                if (isCreator && campInfo.isGoalReached && Number(campInfo.currentMilestone) === i) {
+                    actionHtml = `
+                        <div class="input-row" style="margin-top:6px;">
+                            <input type="text" id="evidenceInput_${i}" placeholder="ลิงก์ผลงาน หรือ คำอธิบายหลักฐานความสำเร็จ" />
+                            <button class="btn btn-primary btn-sm" onclick="requestRelease(${campId}, ${i})" style="white-space:nowrap;">
+                                📤 ส่งหลักฐานขอเบิกเงิน
+                            </button>
+                        </div>
+                    `;
+                } else if (!campInfo.isGoalReached) {
+                    actionHtml = `<span class="meta-info">รอให้โครงการระดมทุนถึงเป้าหมายก่อนเริ่มเบิกงวดงาน</span>`;
+                } else if (Number(campInfo.currentMilestone) < i) {
+                    actionHtml = `<span class="meta-info">ต้องเบิกและผ่านงวดงานก่อนหน้าให้เสร็จก่อน</span>`;
+                }
+            }
+
+            html += `
+                <div class="milestone-item">
+                    <div class="milestone-header">
+                        <div>
+                            <strong>งวดที่ #${i+1}:</strong> ${desc}
+                            <span style="color:#a78bfa; margin-left:8px; font-weight:600;">${amountEth} ETH</span>
+                        </div>
+                        <div>${statusBadge}</div>
+                    </div>
+                    ${evidence ? `<div class="meta-info" style="color:#38bdf8;">📌 หลักฐานความสำเร็จ: ${evidence}</div>` : ""}
+                    <div style="margin-top: 8px;">${actionHtml}</div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
+        document.getElementById("currentMilestoneBadge").textContent = `งวดปัจจุบัน: #${Number(campInfo.currentMilestone)+1}`;
+    }
+
+    async function requestRelease(campId, milestoneIdx) {
+        if (!contract || !account) return;
+        const evidence = document.getElementById(`evidenceInput_${milestoneIdx}`).value.trim();
+        if (!evidence) return setStatus("❌ กรุณาระบุหลักฐานความสำเร็จของงาน", "error");
+
+        try {
+            setStatus(`⏳ กำลังส่งหลักฐานขอเบิกเงินงวดที่ #${milestoneIdx+1}...`, "pending");
+            const tx = await executeContractTx(
+                contract.methods.requestMilestoneRelease(campId, milestoneIdx, evidence)
+            );
+            setStatus(`✅ ส่งหลักฐานขอเบิกเงินสำเร็จ! เปิดโหวตแล้ว (Tx Hash: ${tx.transactionHash})`, "success");
+            await loadActiveCampaign();
+        } catch (err) {
+            setStatus(`❌ ขอเบิกเงินไม่สำเร็จ: ${err.message}`, "error");
+        }
+    }
+
+    async function approveMilestone(campId, milestoneIdx) {
+        if (!contract || !account) return;
+
+        try {
+            setStatus(`⏳ กำลังลงคะแนนโหวตเห็นชอบงวดที่ #${milestoneIdx+1}...`, "pending");
+            const tx = await executeContractTx(
+                contract.methods.approveMilestone(campId, milestoneIdx)
+            );
+            setStatus(`✅ โหวตเห็นชอบสำเร็จ! (Tx Hash: ${tx.transactionHash})`, "success");
+            await loadActiveCampaign();
+        } catch (err) {
+            setStatus(`❌ โหวตไม่สำเร็จ: ${err.message}`, "error");
+        }
+    }
+
+    // =========================================================================
+    // 7. โหลดข้อมูลความโปร่งใสทางการเงิน (Financial Ledger)
+    // =========================================================================
+    async function loadFinancialLogs(campId) {
+        const tbody = document.getElementById("financialLogsBody");
+        try {
+            const logs = await contract.methods.getFinancialLogs(campId).call();
+            if (logs.types.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">ไม่มีประวัติการทำธุรกรรม</td></tr>`;
+                return;
+            }
+
+            let rows = "";
+            for (let i = logs.types.length - 1; i >= 0; i--) {
+                const type = logs.types[i];
+                const actor = logs.actors[i];
+                const amtEth = web3.utils.fromWei(logs.amounts[i], "ether");
+                const mIdx = logs.milestoneIndexes[i];
+                const date = new Date(Number(logs.timestamps[i]) * 1000).toLocaleString("th-TH");
+
+                let typeBadge = "";
+                let msText = "-";
+                if (type === "CONTRIBUTE") {
+                    typeBadge = `<span class="badge success">💰 เงินเข้า (สนับสนุน)</span>`;
+                } else if (type === "RELEASE") {
+                    typeBadge = `<span class="badge" style="background:#6366f1; color:white;">📤 เงินออก (เบิกจ่าย)</span>`;
+                    msText = `งวดที่ #${mIdx}`;
+                } else if (type === "REFUND") {
+                    typeBadge = `<span class="badge danger">↩️ คืนเงิน</span>`;
+                }
+
+                rows += `
+                    <tr>
+                        <td>${typeBadge}</td>
+                        <td style="font-family: monospace;">${actor.slice(0, 8)}...${actor.slice(-6)}</td>
+                        <td style="font-weight: 600; color: #f8fafc;">${amtEth} ETH</td>
+                        <td>${msText}</td>
+                        <td style="color: var(--text-muted);">${date}</td>
+                    </tr>
+                `;
+            }
+            tbody.innerHTML = rows;
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">ไม่สามารถโหลดประวัติได้</td></tr>`;
+        }
+    }
+</script>
+
+</body>
+</html>
