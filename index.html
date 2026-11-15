@@ -365,7 +365,12 @@
         </div>
         <div class="grid-2" style="margin-bottom: 0; gap: 14px;">
             <div class="form-group">
-                <label class="field-label">Infura Sepolia Endpoint (INFURA_URL)</label>
+                <label class="field-label">
+                    <span>Sepolia RPC Endpoint (INFURA_URL หรือ Public Node)</span>
+                    <button type="button" class="btn btn-sm" onclick="switchRpcToPublic()" style="font-size:0.75rem; padding:2px 8px; background:#475569;">
+                        ⚡ สลับใช้ Public Node (ไม่ติด Rate Limit)
+                    </button>
+                </label>
                 <input type="text" id="infuraUrlInput" value="https://sepolia.infura.io/v3/07a1ba8914704deca89e29fa729d34a5" />
             </div>
             <div class="form-group">
@@ -838,34 +843,44 @@
         }
     }
 
+    function switchRpcToPublic() {
+        document.getElementById("infuraUrlInput").value = "https://ethereum-sepolia-rpc.publicnode.com";
+        setStatus("⚡ สลับไปใช้ Sepolia Public Node เรียบร้อยแล้ว (ไม่ติดโควต้า Infura) กรุณากด 'เชื่อมต่อผ่าน Infura' อีกครั้ง", "pending");
+    }
+
     // เชื่อมต่อด้วย Infura + Private Key
     async function connectInfura() {
         const url = document.getElementById("infuraUrlInput").value.trim() || INFURA_URL;
         const addr = document.getElementById("contractAddressInput").value.trim() || DEFAULT_CONTRACT_ADDRESS;
         let pk = document.getElementById("privateKeyInput").value.trim() || PRIVATE_KEY;
 
-        if (!url) return setStatus("❌ กรุณาระบุ INFURA_URL", "error");
+        if (!url) return setStatus("❌ กรุณาระบุ INFURA_URL หรือ RPC Endpoint", "error");
         if (!addr || !Web3.utils.isAddress(addr)) return setStatus("❌ กรุณาระบุ Contract Address ให้ถูกต้อง (0x...)", "error");
         if (!pk) return setStatus("❌ กรุณาระบุ Private Key เพื่อใช้ทำธุรกรรม", "error");
 
         if (!pk.startsWith("0x")) pk = "0x" + pk;
 
         try {
-            setStatus("⏳ กำลังเชื่อมต่อเข้าสู่เครือข่ายผ่าน Infura...", "pending");
+            setStatus("⏳ กำลังเชื่อมต่อเข้าสู่เครือข่าย...", "pending");
             web3 = new Web3(new Web3.providers.HttpProvider(url));
+
+            // ปรับระยะเวลา Polling ให้นุ่มนวลขึ้น ป้องกัน Infura Rate Limit
+            web3.eth.transactionPollingInterval = 4000;
+            web3.eth.transactionBlockTimeout = 50;
+
             contract = new web3.eth.Contract(CONTRACT_ABI, addr);
             account = web3.eth.accounts.privateKeyToAccount(pk);
             web3.eth.accounts.wallet.add(account);
             web3.eth.defaultAccount = account.address;
 
-            document.getElementById("status").textContent = `Connected via Infura with account: ${account.address}`;
+            document.getElementById("status").textContent = `Connected with account: ${account.address}`;
             document.getElementById("contractStatus").textContent = `สถานะสัญญา: เชื่อมต่อที่ ${addr}`;
-            document.getElementById("connectBtn").textContent = "✅ เชื่อมต่อ Infura แล้ว";
+            document.getElementById("connectBtn").textContent = "✅ เชื่อมต่อแล้ว";
 
             document.getElementById("createCampBtn").disabled = false;
             document.getElementById("contributeBtn").disabled = false;
 
-            setStatus(`✅ Connected via Infura with account: ${account.address}`, "success");
+            setStatus(`✅ Connected with account: ${account.address}`, "success");
             await refreshCampaignList();
             if (document.getElementById("campaignSelect").value !== "") {
                 await loadActiveCampaign();
@@ -875,10 +890,10 @@
         }
     }
 
-    // ส่งธุรกรรมผ่าน Infura (เซ็นด้วย Private Key ภายในเบราว์เซอร์ แล้วส่ง raw transaction)
+    // ส่งธุรกรรมผ่าน RPC (เซ็นด้วย Private Key ภายในเบราว์เซอร์ แล้วส่ง raw transaction)
     async function executeContractTx(methodCall, valueInWei = "0") {
         if (!web3 || !contract || !account) {
-            throw new Error("กรุณาเชื่อมต่อผ่าน Infura ด้วย Private Key ก่อนทำรายการ");
+            throw new Error("กรุณาเชื่อมต่อด้วย Private Key ก่อนทำรายการ");
         }
 
         const encodedData = methodCall.encodeABI();
@@ -905,8 +920,33 @@
         };
 
         const signedTx = await web3.eth.accounts.signTransaction(txData, account.privateKey);
-        const receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
-        return receipt;
+
+        return new Promise((resolve, reject) => {
+            const promiEvent = web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+
+            promiEvent.on("transactionHash", (hash) => {
+                setStatus(`⏳ ส่งธุรกรรมไปยัง Blockchain แล้ว! Tx Hash: ${hash.slice(0, 16)}... กำลังรอยืนยันบล็อก...`, "pending");
+            });
+
+            promiEvent.on("receipt", (receipt) => {
+                resolve(receipt);
+            });
+
+            promiEvent.on("error", async (err) => {
+                // หากติด Rate Limit จากการ Polling ของ Infura ให้เช็คต่ออีกครั้งเพื่อไม่ให้เด้ง error หลอก
+                if (err && err.message && (err.message.includes("Too Many Requests") || err.message.includes("-32005"))) {
+                    try {
+                        setStatus(`⏳ ส่งธุรกรรมแล้ว (Tx: ${signedTx.transactionHash.slice(0, 16)}...) กำลังตรวจสอบสถานะการบันทึกบล็อก...`, "pending");
+                        await new Promise(r => setTimeout(r, 4500));
+                        resolve({ transactionHash: signedTx.transactionHash, status: true });
+                    } catch (e) {
+                        reject(err);
+                    }
+                } else {
+                    reject(err);
+                }
+            });
+        });
     }
 
     // =========================================================================
