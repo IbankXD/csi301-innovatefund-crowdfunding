@@ -50,7 +50,7 @@ contract InnovateFund {
 
     // 7. ประวัติธุรกรรมความโปร่งใสทางการเงิน (Funding Transparency Log)
     struct FinancialLog {
-        string logType;           // "CONTRIBUTE", "REFUND", "RELEASE", "REJECT"
+        string logType;           // "CONTRIBUTE", "REFUND", "RELEASE", "REJECT", "UPDATE"
         address actor;            // ผู้ทำรายการ
         uint256 amount;           // จำนวนเงิน (Wei)
         uint256 milestoneIndex;   // ดัชนี Milestone (ถ้ามี)
@@ -190,7 +190,7 @@ contract InnovateFund {
     }
 
     // =========================================================================
-    // 4. ขอเบิกเงินตาม Milestone (Request Fund Release)
+    // 4.1 ขอเบิกเงินตาม Milestone (Request Fund Release)
     // =========================================================================
     function requestMilestoneRelease(
         uint256 _campaignId,
@@ -216,6 +216,40 @@ contract InnovateFund {
         m.requestRound++;
 
         emit MilestoneReleaseRequested(_campaignId, _milestoneIndex, _evidence, m.requestRound);
+    }
+
+    // =========================================================================
+    // 4.2 เจ้าของโครงการแก้ไขหลักฐานและเปิดรอบโหวตใหม่ (Update Evidence & Re-request)
+    // =========================================================================
+    function updateMilestoneEvidence(
+        uint256 _campaignId,
+        uint256 _milestoneIndex,
+        string memory _newEvidence
+    ) external {
+        Campaign storage camp = campaigns[_campaignId];
+        require(camp.exists, "Campaign does not exist");
+        require(msg.sender == camp.creator, "Only creator can update evidence");
+        require(_milestoneIndex == camp.currentMilestone, "Only current milestone can be updated");
+
+        Milestone storage m = campaignMilestones[_campaignId][_milestoneIndex];
+        require(!m.isPaid, "Milestone already paid");
+        require(bytes(_newEvidence).length > 0, "New evidence required");
+
+        m.evidence = _newEvidence;
+        m.isRequested = true;
+        m.approvalCount = 0;
+        m.rejectionCount = 0;
+        m.requestRound++;
+
+        campaignFinancialLogs[_campaignId].push(FinancialLog({
+            logType: "UPDATE",
+            actor: msg.sender,
+            amount: 0,
+            milestoneIndex: _milestoneIndex + 1,
+            timestamp: block.timestamp
+        }));
+
+        emit MilestoneReleaseRequested(_campaignId, _milestoneIndex, _newEvidence, m.requestRound);
     }
 
     // =========================================================================
@@ -277,9 +311,10 @@ contract InnovateFund {
 
         emit MilestoneRejected(_campaignId, _milestoneIndex, msg.sender, _reason, m.rejectionCount);
 
-        // เกณฑ์ปฏิเสธ: หากเสียงไม่เห็นชอบเกิน 50% ให้ตีตก เพื่อให้เจ้าของโครงการไปแก้ไขหลักฐานและส่งใหม่
-        if (m.rejectionCount > (camp.totalContributors / 2)) {
-            m.isRequested = false; // ปลดล็อกให้เจ้าของโครงการส่งหลักฐานรอบใหม่ได้
+        // เกณฑ์ปฏิเสธ: หากเสียงไม่เห็นชอบถึงกึ่งหนึ่ง (rejectionCount * 2 >= totalContributors)
+        // หรือไม่สามารถผ่านคะแนนเกินกึ่งหนึ่งได้แล้ว ให้ตีตกทันที เพื่อปลดล็อกให้เจ้าของโครงการแก้ไขหลักฐานใหม่
+        if (m.rejectionCount * 2 >= camp.totalContributors) {
+            m.isRequested = false; // ปลดล็อกทันที ให้เจ้าของโครงการส่งหลักฐานรอบใหม่ได้
 
             campaignFinancialLogs[_campaignId].push(FinancialLog({
                 logType: "REJECT",

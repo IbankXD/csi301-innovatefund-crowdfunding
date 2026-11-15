@@ -829,6 +829,17 @@
             "outputs": [],
             "stateMutability": "nonpayable",
             "type": "function"
+        },
+        {
+            "inputs": [
+                { "internalType": "uint256", "name": "_campaignId", "type": "uint256" },
+                { "internalType": "uint256", "name": "_milestoneIndex", "type": "uint256" },
+                { "internalType": "string", "name": "_newEvidence", "type": "string" }
+            ],
+            "name": "updateMilestoneEvidence",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
         }
     ];
 
@@ -1322,15 +1333,16 @@
             } else if (isRequested) {
                 statusBadge = `<span class="badge warning">🗳️ กำลังเปิดโหวต (เห็นชอบ ${approvalCount} | ไม่เห็นชอบ ${rejectionCount} / ${totalContributors} เสียง - ต้องการ ${requiredVotes})</span>`;
 
+                let voteButtons = "";
                 let alreadyVoted = false;
                 if (account) {
                     alreadyVoted = await contract.methods.hasVotedOnMilestone(campId, i, account.address).call();
                 }
 
                 if (alreadyVoted) {
-                    actionHtml = `<button class="btn btn-sm" disabled>✅ คุณลงคะแนนในรอบนี้แล้ว</button>`;
+                    voteButtons = `<button class="btn btn-sm" disabled>✅ คุณลงคะแนนในรอบนี้แล้ว</button>`;
                 } else if (isContributor) {
-                    actionHtml = `
+                    voteButtons = `
                         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
                             <button class="btn btn-accent btn-sm" onclick="approveMilestone(${campId}, ${i})">
                                 👍 เห็นชอบให้เบิก (${amountEth} ETH)
@@ -1341,8 +1353,28 @@
                         </div>
                     `;
                 } else {
-                    actionHtml = `<span class="meta-info">เฉพาะผู้สนับสนุนเงินทุนที่มีสิทธิ์โหวต</span>`;
+                    voteButtons = `<span class="meta-info">เฉพาะผู้สนับสนุนเงินทุนที่มีสิทธิ์โหวต</span>`;
                 }
+
+                // หากเป็นเจ้าของโครงการ ให้มีกล่องสำหรับกดแก้ไขหลักฐานและส่งใหม่ได้ทันที
+                let creatorEditBox = "";
+                if (isCreator) {
+                    creatorEditBox = `
+                        <div style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border-color);">
+                            <div class="field-label" style="font-size:0.78rem; color:#fde68a;">
+                                ✏️ เมนูเจ้าของโครงการ: แก้ไขหลักฐานใหม่และเปิดรอบโหวตใหม่
+                            </div>
+                            <div class="input-row">
+                                <input type="text" id="evidenceInput_${i}" placeholder="กรอกหลักฐานฉบับแก้ไขใหม่ที่ชัดเจนขึ้น" />
+                                <button class="btn btn-primary btn-sm" onclick="updateEvidence(${campId}, ${i})" style="white-space:nowrap;">
+                                    🔄 ส่งหลักฐานที่แก้ไขแล้ว
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                actionHtml = `<div>${voteButtons}</div>${creatorEditBox}`;
             } else {
                 const hadRejection = evidence && evidence.length > 0;
                 statusBadge = hadRejection
@@ -1408,6 +1440,24 @@
         }
     }
 
+    async function updateEvidence(campId, milestoneIdx) {
+        if (!contract || !account) return;
+        const inputEl = document.getElementById(`evidenceInput_${milestoneIdx}`);
+        const newEvidence = inputEl ? inputEl.value.trim() : "";
+        if (!newEvidence) return setStatus("❌ กรุณาระบุหลักฐานความสำเร็จฉบับแก้ไขใหม่", "error");
+
+        try {
+            setStatus(`⏳ กำลังส่งหลักฐานฉบับแก้ไขงวดที่ #${milestoneIdx+1} และเปิดโหวตรอบใหม่...`, "pending");
+            const tx = await executeContractTx(
+                contract.methods.updateMilestoneEvidence(campId, milestoneIdx, newEvidence)
+            );
+            setStatus(`✅ อัปเดตหลักฐานสำเร็จ! เปิดรอบโหวตใหม่เรียบร้อย (Tx Hash: ${tx.transactionHash})`, "success");
+            await loadActiveCampaign();
+        } catch (err) {
+            setStatus(`❌ แก้ไขหลักฐานไม่สำเร็จ: ${err.message}`, "error");
+        }
+    }
+
     async function approveMilestone(campId, milestoneIdx) {
         if (!contract || !account) return;
 
@@ -1469,6 +1519,9 @@
                     msText = `งวดที่ #${mIdx}`;
                 } else if (type === "REJECT") {
                     typeBadge = `<span class="badge danger">👎 โหวตไม่เห็นชอบ (ตีตก)</span>`;
+                    msText = `งวดที่ #${mIdx}`;
+                } else if (type === "UPDATE") {
+                    typeBadge = `<span class="badge" style="background:#f59e0b; color:#0f172a;">✏️ แก้ไขหลักฐานใหม่</span>`;
                     msText = `งวดที่ #${mIdx}`;
                 } else if (type === "REFUND") {
                     typeBadge = `<span class="badge danger">↩️ คืนเงิน</span>`;
