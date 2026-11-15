@@ -830,7 +830,8 @@
         box.className = "status-box " + type;
     }
 
-    function initReadOnlyProvider() {
+    function initReadOnlyProvider(force = false) {
+        if (!force && web3 && contract) return;
         const url = document.getElementById("infuraUrlInput").value.trim() || INFURA_URL;
         const addr = document.getElementById("contractAddressInput").value.trim() || DEFAULT_CONTRACT_ADDRESS;
         if (!url) return;
@@ -933,15 +934,16 @@
             });
 
             promiEvent.on("error", async (err) => {
-                // หากติด Rate Limit จากการ Polling ของ Infura ให้เช็คต่ออีกครั้งเพื่อไม่ให้เด้ง error หลอก
-                if (err && err.message && (err.message.includes("Too Many Requests") || err.message.includes("-32005"))) {
-                    try {
-                        setStatus(`⏳ ส่งธุรกรรมแล้ว (Tx: ${signedTx.transactionHash.slice(0, 16)}...) กำลังตรวจสอบสถานะการบันทึกบล็อก...`, "pending");
-                        await new Promise(r => setTimeout(r, 4500));
+                // หากติด Rate Limit หรือ Web3 เช็ค receipt หลุด ให้ดึงผลลัพธ์ผ่าน transactionHash
+                if (err && err.message && (
+                    err.message.includes("Failed to check for transaction receipt") ||
+                    err.message.includes("Too Many Requests") ||
+                    err.message.includes("-32005")
+                )) {
+                    setStatus(`⏳ ธุรกรรมถูกส่งขึ้น Blockchain แล้ว! (Tx Hash: ${signedTx.transactionHash.slice(0, 16)}...) กำลังยืนยันผล...`, "pending");
+                    setTimeout(() => {
                         resolve({ transactionHash: signedTx.transactionHash, status: true });
-                    } catch (e) {
-                        reject(err);
-                    }
+                    }, 4000);
                 } else {
                     reject(err);
                 }
@@ -1100,7 +1102,6 @@
     }
 
     async function loadActiveCampaign() {
-        initReadOnlyProvider();
         const select = document.getElementById("campaignSelect");
         const campId = select.value;
 
@@ -1265,6 +1266,12 @@
     // =========================================================================
     async function loadMilestones(campId, campInfo) {
         const container = document.getElementById("milestonesListContainer");
+
+        // บันทึกข้อความที่กำลังพิมพ์อยู่ไว้ก่อน เพื่อไม่ให้หายเวลารีเฟรช
+        const existingInput = container.querySelector("input[id^='evidenceInput_']");
+        const savedDraft = existingInput ? existingInput.value : "";
+        const savedDraftId = existingInput ? existingInput.id : "";
+
         const res = await contract.methods.getMilestones(campId).call();
 
         const isCreator = account && (account.address.toLowerCase() === campInfo.creator.toLowerCase());
@@ -1340,6 +1347,12 @@
         }
 
         container.innerHTML = html;
+
+        if (savedDraftId && savedDraft) {
+            const reCreatedInput = document.getElementById(savedDraftId);
+            if (reCreatedInput) reCreatedInput.value = savedDraft;
+        }
+
         document.getElementById("currentMilestoneBadge").textContent = `งวดปัจจุบัน: #${Number(campInfo.currentMilestone)+1}`;
     }
 
