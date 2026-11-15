@@ -631,6 +631,18 @@
                 { "indexed": true, "internalType": "uint256", "name": "campaignId", "type": "uint256" },
                 { "indexed": true, "internalType": "uint256", "name": "milestoneIndex", "type": "uint256" },
                 { "indexed": true, "internalType": "address", "name": "voter", "type": "address" },
+                { "indexed": false, "internalType": "string", "name": "reason", "type": "string" },
+                { "indexed": false, "internalType": "uint256", "name": "currentRejections", "type": "uint256" }
+            ],
+            "name": "MilestoneRejected",
+            "type": "event"
+        },
+        {
+            "anonymous": false,
+            "inputs": [
+                { "indexed": true, "internalType": "uint256", "name": "campaignId", "type": "uint256" },
+                { "indexed": true, "internalType": "uint256", "name": "milestoneIndex", "type": "uint256" },
+                { "indexed": true, "internalType": "address", "name": "voter", "type": "address" },
                 { "indexed": false, "internalType": "uint256", "name": "currentVotes", "type": "uint256" }
             ],
             "name": "MilestoneApproved",
@@ -673,6 +685,17 @@
                 { "internalType": "uint256", "name": "_milestoneIndex", "type": "uint256" }
             ],
             "name": "approveMilestone",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                { "internalType": "uint256", "name": "_campaignId", "type": "uint256" },
+                { "internalType": "uint256", "name": "_milestoneIndex", "type": "uint256" },
+                { "internalType": "string", "name": "_reason", "type": "string" }
+            ],
+            "name": "rejectMilestone",
             "outputs": [],
             "stateMutability": "nonpayable",
             "type": "function"
@@ -771,6 +794,7 @@
                 { "internalType": "uint256[]", "name": "targetAmounts", "type": "uint256[]" },
                 { "internalType": "string[]", "name": "evidences", "type": "string[]" },
                 { "internalType": "uint256[]", "name": "approvalCounts", "type": "uint256[]" },
+                { "internalType": "uint256[]", "name": "rejectionCounts", "type": "uint256[]" },
                 { "internalType": "bool[]", "name": "isRequesteds", "type": "bool[]" },
                 { "internalType": "bool[]", "name": "isPaids", "type": "bool[]" }
             ],
@@ -1285,6 +1309,7 @@
             const amountEth = web3.utils.fromWei(res.targetAmounts[i], "ether");
             const evidence = res.evidences[i];
             const approvalCount = Number(res.approvalCounts[i]);
+            const rejectionCount = res.rejectionCounts ? Number(res.rejectionCounts[i]) : 0;
             const isRequested = res.isRequesteds[i];
             const isPaid = res.isPaids[i];
 
@@ -1295,7 +1320,7 @@
                 statusBadge = `<span class="badge success">✅ จ่ายเงินแล้ว (${amountEth} ETH)</span>`;
                 actionHtml = `<div class="meta-info" style="color:#6ee7b7;">โอนเงินให้เจ้าของโครงการเรียบร้อยแล้ว</div>`;
             } else if (isRequested) {
-                statusBadge = `<span class="badge warning">🗳️ กำลังเปิดโหวต (${approvalCount}/${totalContributors} เสียง - ต้องการ ${requiredVotes})</span>`;
+                statusBadge = `<span class="badge warning">🗳️ กำลังเปิดโหวต (เห็นชอบ ${approvalCount} | ไม่เห็นชอบ ${rejectionCount} / ${totalContributors} เสียง - ต้องการ ${requiredVotes})</span>`;
 
                 let alreadyVoted = false;
                 if (account) {
@@ -1303,18 +1328,27 @@
                 }
 
                 if (alreadyVoted) {
-                    actionHtml = `<button class="btn btn-sm" disabled>✅ คุณลงคะแนนแล้ว</button>`;
+                    actionHtml = `<button class="btn btn-sm" disabled>✅ คุณลงคะแนนในรอบนี้แล้ว</button>`;
                 } else if (isContributor) {
                     actionHtml = `
-                        <button class="btn btn-accent btn-sm" onclick="approveMilestone(${campId}, ${i})">
-                            🗳️ โหวตเห็นชอบให้เบิกเงิน (${amountEth} ETH)
-                        </button>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
+                            <button class="btn btn-accent btn-sm" onclick="approveMilestone(${campId}, ${i})">
+                                👍 เห็นชอบให้เบิก (${amountEth} ETH)
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="rejectMilestonePrompt(${campId}, ${i})">
+                                👎 ไม่เห็นชอบ (ส่งกลับไปแก้ไข)
+                            </button>
+                        </div>
                     `;
                 } else {
                     actionHtml = `<span class="meta-info">เฉพาะผู้สนับสนุนเงินทุนที่มีสิทธิ์โหวต</span>`;
                 }
             } else {
-                statusBadge = `<span class="badge">⏳ รอดำเนินการ</span>`;
+                const hadRejection = evidence && evidence.length > 0;
+                statusBadge = hadRejection
+                    ? `<span class="badge danger">⚠️ ถูกตีตก (รอส่งหลักฐานใหม่)</span>`
+                    : `<span class="badge">⏳ รอดำเนินการ</span>`;
+
                 if (isCreator && campInfo.isGoalReached && Number(campInfo.currentMilestone) === i) {
                     actionHtml = `
                         <div class="input-row" style="margin-top:6px;">
@@ -1323,6 +1357,7 @@
                                 📤 ส่งหลักฐานขอเบิกเงิน
                             </button>
                         </div>
+                        ${hadRejection ? `<div class="meta-info" style="color:#fca5a5;">⚠️ หลักฐานก่อนหน้านี้ไม่ผ่านการอนุมัติ กรุณาแนบหลักฐานใหม่ที่ชัดเจนยิ่งขึ้น</div>` : ""}
                     `;
                 } else if (!campInfo.isGoalReached) {
                     actionHtml = `<span class="meta-info">รอให้โครงการระดมทุนถึงเป้าหมายก่อนเริ่มเบิกงวดงาน</span>`;
@@ -1377,11 +1412,28 @@
         if (!contract || !account) return;
 
         try {
-            setStatus(`⏳ กำลังลงคะแนนโหวตเห็นชอบงวดที่ #${milestoneIdx+1}...`, "pending");
+            setStatus(`⏳ กำลังลงคะแนนโหวต "เห็นชอบ" งวดที่ #${milestoneIdx+1}...`, "pending");
             const tx = await executeContractTx(
                 contract.methods.approveMilestone(campId, milestoneIdx)
             );
             setStatus(`✅ โหวตเห็นชอบสำเร็จ! (Tx Hash: ${tx.transactionHash})`, "success");
+            await loadActiveCampaign();
+        } catch (err) {
+            setStatus(`❌ โหวตไม่สำเร็จ: ${err.message}`, "error");
+        }
+    }
+
+    async function rejectMilestonePrompt(campId, milestoneIdx) {
+        if (!contract || !account) return;
+        const reason = prompt("กรุณาระบุเหตุผลที่ไม่เห็นชอบ (ส่งกลับไปให้เจ้าของโครงการแก้ไข):", "หลักฐานไม่ชัดเจน หรือไม่ตรงตามข้อตกลง");
+        if (!reason) return;
+
+        try {
+            setStatus(`⏳ กำลังลงคะแนนโหวต "ไม่เห็นชอบ" งวดที่ #${milestoneIdx+1}...`, "pending");
+            const tx = await executeContractTx(
+                contract.methods.rejectMilestone(campId, milestoneIdx, reason)
+            );
+            setStatus(`✅ โหวตไม่เห็นชอบสำเร็จ! (Tx Hash: ${tx.transactionHash})`, "success");
             await loadActiveCampaign();
         } catch (err) {
             setStatus(`❌ โหวตไม่สำเร็จ: ${err.message}`, "error");
@@ -1414,6 +1466,9 @@
                     typeBadge = `<span class="badge success">💰 เงินเข้า (สนับสนุน)</span>`;
                 } else if (type === "RELEASE") {
                     typeBadge = `<span class="badge" style="background:#6366f1; color:white;">📤 เงินออก (เบิกจ่าย)</span>`;
+                    msText = `งวดที่ #${mIdx}`;
+                } else if (type === "REJECT") {
+                    typeBadge = `<span class="badge danger">👎 โหวตไม่เห็นชอบ (ตีตก)</span>`;
                     msText = `งวดที่ #${mIdx}`;
                 } else if (type === "REFUND") {
                     typeBadge = `<span class="badge danger">↩️ คืนเงิน</span>`;

@@ -14,6 +14,8 @@ contract InnovateFund {
         uint256 targetAmount;     // ยอดเงินที่จะเบิกใน Milestone นี้ (Wei)
         string evidence;          // หลักฐานความสำเร็จของงาน (URL หรือ Hash)
         uint256 approvalCount;    // จำนวนเสียงที่โหวตเห็นชอบ
+        uint256 rejectionCount;   // จำนวนเสียงที่ไม่เห็นชอบ
+        uint256 requestRound;     // รอบการขอเบิก (เพิ่มขึ้นเมื่อมีการส่งหลักฐานใหม่)
         bool isRequested;         // ขอเบิกเงินแล้วหรือยัง
         bool isPaid;              // จ่ายเงินให้เจ้าของโครงการแล้วหรือยัง
         uint256 paidAt;           // เวลาที่จ่ายเงิน
@@ -43,12 +45,12 @@ contract InnovateFund {
     // campaignId => (contributorAddress => hasContributed)
     mapping(uint256 => mapping(address => bool)) public hasContributed;
 
-    // campaignId => (milestoneIndex => (contributorAddress => hasVoted))
-    mapping(uint256 => mapping(uint256 => mapping(address => bool))) public milestoneVotes;
+    // campaignId => (milestoneIndex => (requestRound => (contributorAddress => hasVoted)))
+    mapping(uint256 => mapping(uint256 => mapping(uint256 => mapping(address => bool)))) public milestoneRoundVotes;
 
     // 7. ประวัติธุรกรรมความโปร่งใสทางการเงิน (Funding Transparency Log)
     struct FinancialLog {
-        string logType;           // "CONTRIBUTE", "REFUND", "RELEASE"
+        string logType;           // "CONTRIBUTE", "REFUND", "RELEASE", "REJECT"
         address actor;            // ผู้ทำรายการ
         uint256 amount;           // จำนวนเงิน (Wei)
         uint256 milestoneIndex;   // ดัชนี Milestone (ถ้ามี)
@@ -59,8 +61,9 @@ contract InnovateFund {
     // Events
     event CampaignCreated(uint256 indexed campaignId, string title, address indexed creator, uint256 targetGoal, uint256 deadline);
     event ContributionReceived(uint256 indexed campaignId, address indexed contributor, uint256 amount, uint256 totalRaised);
-    event MilestoneReleaseRequested(uint256 indexed campaignId, uint256 indexed milestoneIndex, string evidence);
+    event MilestoneReleaseRequested(uint256 indexed campaignId, uint256 indexed milestoneIndex, string evidence, uint256 round);
     event MilestoneApproved(uint256 indexed campaignId, uint256 indexed milestoneIndex, address indexed voter, uint256 currentVotes);
+    event MilestoneRejected(uint256 indexed campaignId, uint256 indexed milestoneIndex, address indexed voter, string reason, uint256 currentRejections);
     event MilestoneFundsReleased(uint256 indexed campaignId, uint256 indexed milestoneIndex, uint256 amount, address indexed creator);
     event RefundClaimed(uint256 indexed campaignId, address indexed contributor, uint256 amount);
 
@@ -110,6 +113,8 @@ contract InnovateFund {
                 targetAmount: _milestoneAmounts[i],
                 evidence: "",
                 approvalCount: 0,
+                rejectionCount: 0,
+                requestRound: 0,
                 isRequested: false,
                 isPaid: false,
                 paidAt: 0
@@ -201,17 +206,20 @@ contract InnovateFund {
 
         Milestone storage m = campaignMilestones[_campaignId][_milestoneIndex];
         require(!m.isPaid, "Milestone funds already released");
-        require(!m.isRequested, "Milestone release already requested");
+        require(!m.isRequested, "Milestone release already requested and under voting");
         require(bytes(_evidence).length > 0, "Evidence of completion is required");
 
         m.evidence = _evidence;
         m.isRequested = true;
+        m.approvalCount = 0;
+        m.rejectionCount = 0;
+        m.requestRound++;
 
-        emit MilestoneReleaseRequested(_campaignId, _milestoneIndex, _evidence);
+        emit MilestoneReleaseRequested(_campaignId, _milestoneIndex, _evidence, m.requestRound);
     }
 
     // =========================================================================
-    // 5. อนุมัติการจ่ายเงิน (Approve Milestone)
+    // 5.1 อนุมัติการจ่ายเงิน (Approve Milestone)
     // =========================================================================
     function approveMilestone(uint256 _campaignId, uint256 _milestoneIndex) external {
         Campaign storage camp = campaigns[_campaignId];
@@ -222,9 +230,9 @@ contract InnovateFund {
         Milestone storage m = campaignMilestones[_campaignId][_milestoneIndex];
         require(m.isRequested, "Milestone release has not been requested yet");
         require(!m.isPaid, "Milestone funds already paid");
-        require(!milestoneVotes[_campaignId][_milestoneIndex][msg.sender], "You have already voted on this milestone");
+        require(!milestoneRoundVotes[_campaignId][_milestoneIndex][m.requestRound][msg.sender], "You have already voted on this request");
 
-        milestoneVotes[_campaignId][_milestoneIndex][msg.sender] = true;
+        milestoneRoundVotes[_campaignId][_milestoneIndex][m.requestRound][msg.sender] = true;
         m.approvalCount++;
 
         emit MilestoneApproved(_campaignId, _milestoneIndex, msg.sender, m.approvalCount);
@@ -247,6 +255,39 @@ contract InnovateFund {
             }));
 
             emit MilestoneFundsReleased(_campaignId, _milestoneIndex, m.targetAmount, camp.creator);
+        }
+    }
+
+    // =========================================================================
+    // 5.2 ไม่อนุมัติ / ปฏิเสธการจ่ายเงิน (Reject Milestone เพื่อให้เจ้าของโครงการไปแก้ไขหลักฐานใหม่)
+    // =========================================================================
+    function rejectMilestone(uint256 _campaignId, uint256 _milestoneIndex, string memory _reason) external {
+        Campaign storage camp = campaigns[_campaignId];
+        require(camp.exists, "Campaign does not exist");
+        require(hasContributed[_campaignId][msg.sender], "Only contributors can reject milestone");
+        require(_milestoneIndex < camp.milestoneCount, "Invalid milestone index");
+
+        Milestone storage m = campaignMilestones[_campaignId][_milestoneIndex];
+        require(m.isRequested, "Milestone release has not been requested yet");
+        require(!m.isPaid, "Milestone funds already paid");
+        require(!milestoneRoundVotes[_campaignId][_milestoneIndex][m.requestRound][msg.sender], "You have already voted on this request");
+
+        milestoneRoundVotes[_campaignId][_milestoneIndex][m.requestRound][msg.sender] = true;
+        m.rejectionCount++;
+
+        emit MilestoneRejected(_campaignId, _milestoneIndex, msg.sender, _reason, m.rejectionCount);
+
+        // เกณฑ์ปฏิเสธ: หากเสียงไม่เห็นชอบเกิน 50% ให้ตีตก เพื่อให้เจ้าของโครงการไปแก้ไขหลักฐานและส่งใหม่
+        if (m.rejectionCount > (camp.totalContributors / 2)) {
+            m.isRequested = false; // ปลดล็อกให้เจ้าของโครงการส่งหลักฐานรอบใหม่ได้
+
+            campaignFinancialLogs[_campaignId].push(FinancialLog({
+                logType: "REJECT",
+                actor: msg.sender,
+                amount: 0,
+                milestoneIndex: _milestoneIndex + 1,
+                timestamp: block.timestamp
+            }));
         }
     }
 
@@ -288,6 +329,7 @@ contract InnovateFund {
             uint256[] memory targetAmounts,
             string[] memory evidences,
             uint256[] memory approvalCounts,
+            uint256[] memory rejectionCounts,
             bool[] memory isRequesteds,
             bool[] memory isPaids
         )
@@ -299,6 +341,7 @@ contract InnovateFund {
         targetAmounts = new uint256[](len);
         evidences = new string[](len);
         approvalCounts = new uint256[](len);
+        rejectionCounts = new uint256[](len);
         isRequesteds = new bool[](len);
         isPaids = new bool[](len);
 
@@ -307,6 +350,7 @@ contract InnovateFund {
             targetAmounts[i] = list[i].targetAmount;
             evidences[i] = list[i].evidence;
             approvalCounts[i] = list[i].approvalCount;
+            rejectionCounts[i] = list[i].rejectionCount;
             isRequesteds[i] = list[i].isRequested;
             isPaids[i] = list[i].isPaid;
         }
@@ -346,6 +390,7 @@ contract InnovateFund {
         view
         returns (bool)
     {
-        return milestoneVotes[_campaignId][_milestoneIndex][_voter];
+        uint256 round = campaignMilestones[_campaignId][_milestoneIndex].requestRound;
+        return milestoneRoundVotes[_campaignId][_milestoneIndex][round][_voter];
     }
 }
